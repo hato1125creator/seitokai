@@ -1,6 +1,6 @@
 // Google Apps Script API サービス
 
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzrwk5RuIgIMbBHw1ESgNy7JYluo-nPP-bJpVEvwZ1QzXmxHjOfbtmixk0XQ3uyX9qevA/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyOaxFP4Hlr32waWkUMCQlWixoogxJ3HBzlfFSCDogGApsm5vpt_nN_IlPGZ5Du3nFw4w/exec';
 
 /**
  * 活動報告データを取得する
