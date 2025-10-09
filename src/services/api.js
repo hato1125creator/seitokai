@@ -1,170 +1,124 @@
-// Google Apps Script API サービス
-
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyOaxFP4Hlr32waWkUMCQlWixoogxJ3HBzlfFSCDogGApsm5vpt_nN_IlPGZ5Du3nFw4w/exec';
+const SPREADSHEET_ID = '1qgIKoJ9Pj_nS7msjVknFDjfiuz41FxIW5jFqc6aGZXA';
+const FOLDER_ID = '16TIvPJuNhu3kvVXhfrhmIScwQrnpSJip';
 
 /**
- * 活動報告データを取得する
+ * JSON出力用（シンプル版）
+ * ContentServiceではsetHeaderが使えないので、CORS設定は不要。
  */
-export const getActivities = async () => {
+function createJSONResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * OPTIONSリクエスト対応（fetchのプリフライト）
+ */
+function doOptions(e) {
+  return ContentService.createTextOutput('');
+}
+
+/**
+ * GETリクエスト処理
+ */
+function doGet(e) {
+  const path = e.parameter.path || ''; // パラメータが空でも安全に処理
   try {
-    const response = await fetch(`${GAS_WEB_APP_URL}?path=activities`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (path === 'activities') {
+      return createJSONResponse(getActivitiesData());
+    } else if (path === 'announcements') {
+      return createJSONResponse(getAnnouncementsData());
+    } else {
+      return createJSONResponse({ error: 'Invalid path' });
     }
-    const data = await response.json();
-    return data;
   } catch (error) {
-    console.error('活動報告の取得に失敗しました:', error);
-    // フォールバック用のサンプルデータを返す
-    return [
-      {
-        ID: 1,
-        タイトル: '文化祭実行委員会の募集について',
-        日付: '2025-10-05',
-        カテゴリー: '行事',
-        内容: '今年度の文化祭実行委員を募集しています。多くの皆さんの参加をお待ちしています。',
-        画像URL: '/src/assets/festival.jpg'
-      },
-      {
-        ID: 2,
-        タイトル: '生徒会役員選挙の実施について',
-        日付: '2025-10-03',
-        カテゴリー: '選挙',
-        内容: '来年度の生徒会役員選挙を実施します。立候補の受付を開始しました。',
-        画像URL: '/src/assets/school-event.jpg'
-      },
-      {
-        ID: 3,
-        タイトル: '地域清掃ボランティア活動報告',
-        日付: '2025-10-01',
-        カテゴリー: 'ボランティア',
-        内容: '先日実施した地域清掃活動に多くの生徒が参加しました。',
-        画像URL: '/src/assets/school-building.jpg'
-      }
-    ];
+    return createJSONResponse({ error: error.message });
   }
-};
+}
 
 /**
- * お知らせデータを取得する
+ * POSTリクエスト処理
  */
-export const getAnnouncements = async () => {
+function doPost(e) {
+  // multipart/form-dataでは path が取得できない場合があるためフォールバックを追加
+  const path = e.parameter.path || 'submit';
   try {
-    const response = await fetch(`${GAS_WEB_APP_URL}?path=announcements`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (path === 'submit') {
+      return handleSubmission(e);
+    } else {
+      return createJSONResponse({ error: 'Invalid path' });
     }
-    const data = await response.json();
-    return data;
   } catch (error) {
-    console.error('お知らせの取得に失敗しました:', error);
-    // フォールバック用のサンプルデータを返す
-    return [
-      {
-        ID: 1,
-        タイトル: '体育祭の日程変更について',
-        日付: '2025-10-06',
-        カテゴリー: '緊急',
-        重要: true,
-        内容: '天候の影響により、体育祭の日程を変更いたします。詳細は後日お知らせします。'
-      },
-      {
-        ID: 2,
-        タイトル: '図書委員会からのお知らせ',
-        日付: '2025-10-04',
-        カテゴリー: '委員会',
-        重要: false,
-        内容: '新刊図書の紹介と図書館利用についてのお知らせです。'
-      },
-      {
-        ID: 3,
-        タイトル: '制服着用についての注意事項',
-        日付: '2025-10-02',
-        カテゴリー: '生活指導',
-        重要: false,
-        内容: '制服の正しい着用方法について改めてお知らせします。'
-      }
-    ];
+    return createJSONResponse({ error: error.message });
   }
-};
+}
 
 /**
- * 提出物をアップロードする
+ * 活動報告データを取得
  */
-export const submitFile = async (fileData, name, gradeClass) => {
-  try {
-    const formData = new FormData();
-    formData.append('path', 'submit');
-    formData.append('name', name);
-    formData.append('gradeClass', gradeClass);
-    
-    // ファイルをBase64エンコードして送信
-    const reader = new FileReader();
-    return new Promise((resolve, reject) => {
-      reader.onload = async () => {
-        const base64Data = reader.result.split(',')[1];
-        formData.append('file', base64Data);
-        formData.append('filename', fileData.name);
-        formData.append('mimeType', fileData.type);
-
-        try {
-          const response = await fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const result = await response.json();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
-      reader.readAsDataURL(fileData);
+function getActivitiesData() {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('活動報告');
+  if (!sheet) return { error: 'Sheet "活動報告" not found' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data.shift();
+  return data
+    .filter(row => row.some(cell => cell !== '')) // 空行を除外
+    .map(row => {
+      const obj = {};
+      headers.forEach((header, i) => obj[header] = row[i]);
+      return obj;
     });
+}
+
+/**
+ * お知らせデータを取得
+ */
+function getAnnouncementsData() {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('お知らせ');
+  if (!sheet) return { error: 'Sheet "お知らせ" not found' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data.shift();
+  return data
+    .filter(row => row.some(cell => cell !== ''))
+    .map(row => {
+      const obj = {};
+      headers.forEach((header, i) => obj[header] = row[i]);
+      return obj;
+    });
+}
+
+/**
+ * 提出物処理
+ */
+function handleSubmission(e) {
+  try {
+    if (!e.parameter.file) {
+      return createJSONResponse({ error: 'No file uploaded' });
+    }
+
+    const fileBlob = Utilities.newBlob(
+      Utilities.base64Decode(e.parameter.file),
+      e.parameter.mimeType || 'application/octet-stream',
+      e.parameter.filename || 'uploaded_file'
+    );
+
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const file = folder.createFile(fileBlob);
+
+    const submissionsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('提出物');
+    if (!submissionsSheet) {
+      return createJSONResponse({ error: 'Sheet "提出物" not found' });
+    }
+
+    submissionsSheet.appendRow([
+      new Date(),
+      e.parameter.name || '',
+      e.parameter.gradeClass || '',
+      file.getName(),
+      file.getUrl()
+    ]);
+
+    return createJSONResponse({ success: true, fileUrl: file.getUrl() });
   } catch (error) {
-    console.error('ファイルの提出に失敗しました:', error);
-    throw error;
+    return createJSONResponse({ error: error.message });
   }
-};
-
-/**
- * データを日付順にソートする
- */
-export const sortByDate = (data, dateField = '日付', ascending = false) => {
-  return [...data].sort((a, b) => {
-    const dateA = new Date(a[dateField]);
-    const dateB = new Date(b[dateField]);
-    return ascending ? dateA - dateB : dateB - dateA;
-  });
-};
-
-/**
- * カテゴリーでフィルタリングする
- */
-export const filterByCategory = (data, category, categoryField = 'カテゴリー') => {
-  if (!category || category === 'すべて') {
-    return data;
-  }
-  return data.filter(item => item[categoryField] === category);
-};
-
-/**
- * 重要なお知らせを上部に固定する
- */
-export const sortAnnouncementsByImportance = (announcements) => {
-  return [...announcements].sort((a, b) => {
-    // 重要なお知らせを上部に表示
-    if (a.重要 && !b.重要) return -1;
-    if (!a.重要 && b.重要) return 1;
-    
-    // 同じ重要度の場合は日付順（新しい順）
-    const dateA = new Date(a.日付);
-    const dateB = new Date(b.日付);
-    return dateB - dateA;
-  });
-};
+}
