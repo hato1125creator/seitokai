@@ -7,8 +7,14 @@ const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUd4o7nh8byOan
  */
 export const getActivities = async () => {
   try {
-     const text = await response.text(); // ← textで受け取る
-    const data = JSON.parse(text); // ← 手動でJSON化
+    const response = await fetch(`${GAS_WEB_APP_URL}?path=activities`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    const data = JSON.parse(text);
     return data;
   } catch (error) {
     console.error('活動報告の取得に失敗しました:', error);
@@ -47,8 +53,14 @@ export const getActivities = async () => {
  */
 export const getAnnouncements = async () => {
   try {
-     const text = await response.text(); // ← textで受け取る
-    const data = JSON.parse(text); // ← 手動でJSON化
+    const response = await fetch(`${GAS_WEB_APP_URL}?path=announcements`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    const data = JSON.parse(text);
     return data;
   } catch (error) {
     console.error('お知らせの取得に失敗しました:', error);
