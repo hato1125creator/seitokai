@@ -1,21 +1,31 @@
 // Google Apps Script API サービス
 
-const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUd4o7nh8byOan6ruke9JAWc8d8oZ0rkxNLroARnNwG3JVseh5OjR2LQ9ctVRGmO3epA/exec';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby8dHHURZJmKpkMaJdPkwQXRpZ12J9ReCApn2NlSRV0Kiv62g_AqWNjY-tpbzECHn_Ohg/exec';
 
 /**
  * 活動報告データを取得する
  */
 export const getActivities = async () => {
   try {
-    const response = await fetch(`${GAS_WEB_APP_URL}?path=activities`);
+    const response = await fetch(`${GAS_WEB_APP_URL}?path=activities`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const text = await response.text();
-    const data = JSON.parse(text);
-    return data;
+    const data = await response.json();
+    
+    // エラーレスポンスのチェック
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('活動報告の取得に失敗しました:', error);
     // フォールバック用のサンプルデータを返す
@@ -53,15 +63,25 @@ export const getActivities = async () => {
  */
 export const getAnnouncements = async () => {
   try {
-    const response = await fetch(`${GAS_WEB_APP_URL}?path=announcements`);
+    const response = await fetch(`${GAS_WEB_APP_URL}?path=announcements`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const text = await response.text();
-    const data = JSON.parse(text);
-    return data;
+    const data = await response.json();
+    
+    // エラーレスポンスのチェック
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('お知らせの取得に失敗しました:', error);
     // フォールバック用のサンプルデータを返す
@@ -124,6 +144,11 @@ export const submitFile = async (fileData, name, gradeClass) => {
           }
           
           const result = await response.json();
+          
+          if (result.error) {
+            throw new Error(result.error);
+          }
+          
           resolve(result);
         } catch (error) {
           reject(error);
