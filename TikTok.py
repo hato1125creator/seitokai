@@ -2198,6 +2198,14 @@ pModal.addEventListener('click', (e) => {
     togglePlayerUI();
 });
 
+// 標準コントロールが残っている可能性を排除するため、videoタグにcontrols属性がないことを確認
+// また、モバイルでの再生バーが押せない問題は、カスタムUIが標準UIを覆い隠すことで解決する
+// 以前のボタンが残っている問題は、HTMLからcontrols属性を削除することで解決済みのはず
+//念のため、CSSでvideo要素の標準コントロールを非表示にする（一部ブラウザ対策）
+// .player-ui { pointer-events: none; } が効いているはずだが、念のため
+// CSSはHTML_TEMPLATEの先頭付近にあるため、ここではJSのみ修正
+
+
 // 再生/一時停止時にもタイマーをリセット
 pVideo.addEventListener('play', () => {
     resetPlayerUITimer();
@@ -2210,6 +2218,13 @@ pVideo.addEventListener('pause', () => {
 // シークバー操作中は非表示にしない
 document.getElementById('playerSeek').addEventListener('touchstart', () => clearTimeout(uiTimer));
 document.getElementById('playerSeek').addEventListener('touchend', () => resetPlayerUITimer());
+
+document.getElementById('playerSeek').addEventListener('change', (e) => {
+    if (pVideo.duration > 0) {
+        const time = (e.target.value / 100) * pVideo.duration;
+        pVideo.currentTime = time;
+    }
+});
 
 function updatePlayerTime() {
     const current = formatTime(pVideo.currentTime);
@@ -2224,11 +2239,16 @@ function updatePlayerTime() {
 }
 
 function seekVideo(value) {
+    // シークバーをドラッグしている間はcurrentTimeを更新しないようにする
+    // oninputイベントで呼ばれるため、ここでは何もしない
+}
+
+document.getElementById('playerSeek').addEventListener('change', (e) => {
     if (pVideo.duration > 0) {
-        const time = (value / 100) * pVideo.duration;
+        const time = (e.target.value / 100) * pVideo.duration;
         pVideo.currentTime = time;
     }
-}
+});
 
 function formatTime(seconds) {
     if (isNaN(seconds) || seconds === Infinity) return '0:00';
@@ -2427,9 +2447,16 @@ function updatePlayerTagButton(tags) {
     }
 }
 
-function openPlayerTagModal() {
+async function openPlayerTagModal() {
     const currentVideo = currentLib[currentIndex];
     if (!currentVideo) return;
+    
+    // APIから最新のメタデータを取得し、タグ情報を更新
+    const res = await fetch(`/api/meta?video_id=${currentVideo.id}`);
+    const meta = await res.json();
+    
+    // currentLibのタグ情報を更新
+    currentVideo.tags = meta.tags;
     
     const tags = currentVideo.tags ? currentVideo.tags.split(',').map(t => t.trim()).filter(t => t) : [];
     openTagModal(currentVideo.id, tags);
