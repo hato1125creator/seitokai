@@ -904,11 +904,13 @@ body {
     flex-direction:column; 
     justify-content:space-between; 
     padding:16px; 
-    opacity:0; 
+    opacity:1; /* 初期表示はON */
     transition:opacity 0.3s;
 }
-#playerModal:hover .player-ui, 
-#playerModal:active .player-ui { opacity:1; }
+.player-ui.hidden {
+    opacity: 0;
+}
+/* タッチ操作でUIの表示/非表示を切り替えるため、hover/activeによる制御は削除 */
 
 .player-header { 
     display:flex; 
@@ -943,6 +945,13 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    /* 画面下部に固定 */
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
 }
 .time-display {
     font-size: 12px;
@@ -2149,7 +2158,56 @@ function openPlayer(idx) {
     pVideo.onvolumechange = () => document.getElementById('muteBtn').innerHTML = pVideo.muted ? '🔇' : '🔊';
     document.getElementById('playPauseBtn').innerHTML = pVideo.paused ? '▶️ 再生' : '⏸ 一時停止';
     document.getElementById('muteBtn').innerHTML = pVideo.muted ? '🔇' : '🔊';
+    
+    // UI自動非表示タイマーをリセット
+    resetPlayerUITimer();
 }
+
+let uiTimer = null;
+const playerUI = document.querySelector('.player-ui');
+
+function togglePlayerUI(forceShow = false) {
+    if (forceShow) {
+        playerUI.classList.remove('hidden');
+        resetPlayerUITimer();
+    } else {
+        playerUI.classList.toggle('hidden');
+        if (!playerUI.classList.contains('hidden')) {
+            resetPlayerUITimer();
+        } else {
+            clearTimeout(uiTimer);
+        }
+    }
+}
+
+function resetPlayerUITimer() {
+    clearTimeout(uiTimer);
+    if (!pVideo.paused) {
+        uiTimer = setTimeout(() => {
+            playerUI.classList.add('hidden');
+        }, 3000); // 3秒後に非表示
+    }
+}
+
+// プレイヤーのクリック/タップでUIをトグル
+pModal.addEventListener('click', (e) => {
+    // UI要素上でのクリックは無視
+    if (e.target.closest('.player-ui')) return;
+    togglePlayerUI();
+});
+
+// 再生/一時停止時にもタイマーをリセット
+pVideo.addEventListener('play', () => {
+    resetPlayerUITimer();
+});
+pVideo.addEventListener('pause', () => {
+    clearTimeout(uiTimer);
+    playerUI.classList.remove('hidden'); // 一時停止中は表示
+});
+
+// シークバー操作中は非表示にしない
+document.getElementById('playerSeek').addEventListener('touchstart', () => clearTimeout(uiTimer));
+document.getElementById('playerSeek').addEventListener('touchend', () => resetPlayerUITimer());
 
 function updatePlayerTime() {
     const current = formatTime(pVideo.currentTime);
@@ -2184,6 +2242,10 @@ function formatTime(seconds) {
 pModal.addEventListener('touchstart', (e) => {
     // UI要素上でのタッチは無視
     if (e.target.closest('.player-ui')) return;
+    
+    // スワイプ開始時にUIを強制表示
+    togglePlayerUI(true);
+    
     swipeStartX = e.touches[0].clientX;
     swipeEndX = swipeStartX;
 }, { passive: true });
@@ -2207,6 +2269,9 @@ pModal.addEventListener('touchend', () => {
     }
     swipeStartX = 0;
     swipeEndX = 0;
+    
+    // スワイプ終了後にタイマーをリセット
+    resetPlayerUITimer();
 });
 
 function updatePlayerFavoriteButton(isFavorite) {
