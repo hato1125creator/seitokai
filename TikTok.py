@@ -1706,6 +1706,7 @@ button, .card, .folder-item, .filter-btn, .nav-item, .action-btn, .meta-btn {
             <div class="player-title" id="playerTitle">Title</div>
             <div class="player-controls">
                 <button class="ui-btn" id="playerFolderBtn" onclick="jumpToFolderFromPlayer()">📂</button>
+                <button class="ui-btn" id="playerTagBtn" onclick="openPlayerTagModal()">🏷️</button>
                 <button class="ui-btn" id="playerFavBtn" onclick="togglePlayerFavorite()">☆</button>
                 <button class="ui-btn" onclick="closePlayer()">✕</button>
             </div>
@@ -2130,6 +2131,7 @@ function openPlayer(idx) {
     pVideo.src = `/video/${v.id}`;
     document.getElementById('playerTitle').innerText = v.filename;
     updatePlayerFavoriteButton(v.favorite);
+    updatePlayerTagButton(v.tags);
     
     try {
         const pathParts = v.path.split('/');
@@ -2347,6 +2349,7 @@ function playNext() {
         pVideo.src = `/video/${v.id}`;
         document.getElementById('playerTitle').innerText = v.filename;
         updatePlayerFavoriteButton(v.favorite);
+        updatePlayerTagButton(v.tags);
         
         try {
             const pathParts = v.path.split('/');
@@ -2370,6 +2373,7 @@ function playPrev() {
         pVideo.src = `/video/${v.id}`;
         document.getElementById('playerTitle').innerText = v.filename;
         updatePlayerFavoriteButton(v.favorite);
+        updatePlayerTagButton(v.tags);
         fetch('/api/meta', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({video_id: v.id, action:'play'})});
         pVideo.play().catch(()=>{});
     }
@@ -2411,6 +2415,26 @@ async function toggleFavorite(e, video_id) {
     loadLibrary();
 }
 
+function updatePlayerTagButton(tags) {
+    const btn = document.getElementById('playerTagBtn');
+    const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
+    if (tagArray.length > 0) {
+        btn.style.background = '#00aaff';
+        btn.title = `タグ: ${tagArray.join(', ')}`;
+    } else {
+        btn.style.background = 'rgba(0,0,0,0.85)';
+        btn.title = 'タグなし';
+    }
+}
+
+function openPlayerTagModal() {
+    const currentVideo = currentLib[currentIndex];
+    if (!currentVideo) return;
+    
+    const tags = currentVideo.tags ? currentVideo.tags.split(',').map(t => t.trim()).filter(t => t) : [];
+    openTagModal(currentVideo.id, tags);
+}
+
 function openTagModal(video_id, tags) {
     tagModalState.video_id = video_id;
     tagModalState.tags = Array.isArray(tags) ? tags.filter(t => t) : [];
@@ -2445,6 +2469,14 @@ function removeTag(tag) {
 async function saveTags() {
     const tags = tagModalState.tags.join(',');
     await fetch('/api/meta', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({video_id: tagModalState.video_id, action:'set_tags', tags})});
+    
+    // プレイヤーで開いている動画のタグを更新
+    const currentVideo = currentLib.find(v => v.id === tagModalState.video_id);
+    if (currentVideo) {
+        currentVideo.tags = tags;
+        updatePlayerTagButton(tags);
+    }
+    
     closeTagModal();
     loadLibrary();
     loadStats();
